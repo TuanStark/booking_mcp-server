@@ -1,0 +1,126 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: registry.crbgroup.cloud
+  IMAGE_NAME: pho-mcp-server
+
+jobs:
+  # Job for testing pull requests - build only, no push
+  test-build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get package version
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Package version: $VERSION"
+
+      - name: Test build Docker image
+        id: docker_test_build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: false
+          build-args: |
+            HASURA_ENDPOINT=${{ secrets.HASURA_ENDPOINT }}
+            HASURA_GRAPHQL_ADMIN_SECRET=${{ secrets.HASURA_GRAPHQL_ADMIN_SECRET }}
+            GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Summary
+        run: |
+          echo "## 🧪 Test Build Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${{ steps.package-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Git SHA: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- PR: #${{ github.event.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Validation Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GraphQL types generated successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ NestJS application built successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Docker image created (not pushed)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Ready to merge! 🚀" >> $GITHUB_STEP_SUMMARY
+
+  # Job for production deployment - build and push to registry
+  build-and-push:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+
+      - name: Get package version
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Package version: $VERSION"
+
+      - name: Build and push Docker image
+        id: docker_build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            HASURA_ENDPOINT=${{ secrets.HASURA_ENDPOINT }}
+            HASURA_GRAPHQL_ADMIN_SECRET=${{ secrets.HASURA_GRAPHQL_ADMIN_SECRET }}
+            GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image digest
+        run: |
+          echo "Image digest: ${{ steps.docker_build.outputs.digest }}"
+
+      - name: Summary
+        run: |
+          echo "## 🚀 Image successfully built and pushed!" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${{ steps.package-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Git SHA: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag: latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Build Process:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GraphQL types generated during Docker build" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ NestJS application built with optimized output" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Docker image pushed to registry" >> $GITHUB_STEP_SUMMARY

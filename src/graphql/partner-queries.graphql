@@ -1,0 +1,18 @@
+query GetPartners($where: PartnersRequestBoolExp = {}, $limit: Int = 20) {
+  partnersRequest(where: $where, limit: $limit, orderBy: { createdAt: DESC }) {
+    name
+    slug
+    logo
+    backgroundImage
+    isActive
+    website
+    propertiesImages
+    location
+    mainField
+    createdAt
+    updatedAt
+    status
+    phone
+    testimonial
+  }
+} 

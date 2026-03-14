@@ -1,0 +1,28 @@
+mutation AddAgentLeads($objects: [AgentLeadsInsertInput!]!) {
+  insertAgentLeads(objects: $objects) {
+    returning {
+      id
+      fullName
+      email
+      phoneNumber
+      message
+      status
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+
+query GetAgentLeads($distinctOn: [AgentLeadsSelectColumn!] = createdAt, $limit: Int = 10, $offset: Int = 0, $orderBy: [AgentLeadsOrderBy!] = {}, $where: AgentLeadsBoolExp = {}) {
+  agentLeads(distinctOn: $distinctOn, limit: $limit, offset: $offset, orderBy: $orderBy, where: $where) {
+    createdAt
+    email
+    fullName
+    id
+    message
+    phoneNumber
+    updatedAt
+    status
+  }
+}

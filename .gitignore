@@ -1,0 +1,9 @@
+node_modules
+.env
+bin
+dist
+logs
+uploads
+*/config.yaml
+*/dump.sql
+docker-compose.yml
