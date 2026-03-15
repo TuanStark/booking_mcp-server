@@ -6,7 +6,7 @@ import { AppController } from './app.controller';
 import { AppLogger } from './logger.service';
 import { LoggingInterceptor } from './logging.interceptor';
 import { AppService } from './app.service';
-import { TestTool, DormitoryTool } from './mcp';
+import { DormitoryTool } from './mcp';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
@@ -26,7 +26,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
       useClass: LoggingInterceptor,
     },
     AppService,
-    TestTool,
     DormitoryTool,
   ],
 })

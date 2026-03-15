@@ -1,16 +1,10 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { InjectSdk, GqlSdk } from 'src/sdk/sdk.module';
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
-export class AppService implements OnModuleInit {
-  constructor(@InjectSdk() private sdk: GqlSdk) {}
+export class AppService {
+  private readonly logger = new Logger(AppService.name);
 
-  onModuleInit() {
-    this.test();
-  }
-
-  async test() {
-    const { __typename } = await this.sdk.TestSdk({});
-    console.log('test', __typename);
+  getHello(): string {
+    return 'Dormitory MCP Server is running!';
   }
 }
