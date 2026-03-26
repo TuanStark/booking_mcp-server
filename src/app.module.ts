@@ -8,6 +8,7 @@ import { LoggingInterceptor } from './logging.interceptor';
 import { AppService } from './app.service';
 import { DormitoryTool } from './mcp';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ReadDbService } from './data/read-db.service';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
       useClass: LoggingInterceptor,
     },
     AppService,
+    ReadDbService,
     DormitoryTool,
   ],
 })
