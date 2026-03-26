@@ -20,8 +20,13 @@ export class DormitoryTool {
   ) {
     this.gatewayUrl =
       this.configService.get<string>('GATEWAY_URL') || 'http://localhost:4000';
-    this.googleMapsApiKey = this.configService.get<string>('GOOGLE_MAPS_API_KEY');
-    this.gatewayTimeoutMs = this.configService.get<number>('GATEWAY_TIMEOUT_MS', 5000);
+    this.googleMapsApiKey = this.configService.get<string>(
+      'GOOGLE_MAPS_API_KEY',
+    );
+    this.gatewayTimeoutMs = this.configService.get<number>(
+      'GATEWAY_TIMEOUT_MS',
+      5000,
+    );
   }
 
   private extractErrorMessage(error: any): string {
@@ -32,7 +37,11 @@ export class DormitoryTool {
     return this.readDbService.isReady();
   }
 
-  private safeReportProgress(context: Context, progress: number, total = 100): void {
+  private safeReportProgress(
+    context: Context,
+    progress: number,
+    total = 100,
+  ): void {
     try {
       context.reportProgress({ progress, total });
     } catch {
@@ -95,14 +104,22 @@ export class DormitoryTool {
       .map((v: string) => this.normalizeText(v));
   }
 
-  private parseBuildingCoordinates(building: any): { lat?: number; lng?: number } {
+  private parseBuildingCoordinates(building: any): {
+    lat?: number;
+    lng?: number;
+  } {
     return {
       lat: this.toNumber(building?.latitude),
       lng: this.toNumber(building?.longtitude ?? building?.longitude),
     };
   }
 
-  private haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private haversineKm(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const toRad = (d: number) => (d * Math.PI) / 180;
     const R = 6371;
     const dLat = toRad(lat2 - lat1);
@@ -128,15 +145,18 @@ export class DormitoryTool {
       throw new Error('GOOGLE_MAPS_API_KEY is not configured');
     }
     const response = await firstValueFrom(
-      this.httpService.get('https://maps.googleapis.com/maps/api/geocode/json', {
-        params: {
-          address: placeQuery,
-          key: this.googleMapsApiKey,
-          language: 'vi',
-          region: 'vn',
+      this.httpService.get(
+        'https://maps.googleapis.com/maps/api/geocode/json',
+        {
+          params: {
+            address: placeQuery,
+            key: this.googleMapsApiKey,
+            language: 'vi',
+            region: 'vn',
+          },
+          timeout: this.gatewayTimeoutMs,
         },
-        timeout: this.gatewayTimeoutMs,
-      }),
+      ),
     );
     const payload = response.data;
     if (payload?.status !== 'OK' || !payload?.results?.length) {
@@ -223,7 +243,9 @@ export class DormitoryTool {
       const filtered = rooms.filter((room) => {
         const price = this.getRoomPrice(room);
         const capacity = this.toNumber(room?.capacity) ?? 0;
-        const typeText = this.normalizeText(room?.type ?? room?.roomType ?? room?.name);
+        const typeText = this.normalizeText(
+          room?.type ?? room?.roomType ?? room?.name,
+        );
         const amenities = this.getRoomAmenities(room);
         const status = String(room?.status ?? '').toUpperCase();
 
@@ -235,7 +257,8 @@ export class DormitoryTool {
         if (building_id && room?.buildingId !== building_id) return false;
         if (available_only && status && status !== 'AVAILABLE') return false;
         if (normalizedAmenities.length > 0) {
-          if (!normalizedAmenities.every((req) => amenities.includes(req))) return false;
+          if (!normalizedAmenities.every((req) => amenities.includes(req)))
+            return false;
         }
         return true;
       });
@@ -247,7 +270,10 @@ export class DormitoryTool {
           case 'price_desc':
             return this.getRoomPrice(b) - this.getRoomPrice(a);
           case 'capacity_asc':
-            return (this.toNumber(a?.capacity) ?? 0) - (this.toNumber(b?.capacity) ?? 0);
+            return (
+              (this.toNumber(a?.capacity) ?? 0) -
+              (this.toNumber(b?.capacity) ?? 0)
+            );
           case 'newest':
           default:
             return 0;
@@ -330,7 +356,8 @@ export class DormitoryTool {
         resolvedAddress = geocode.formattedAddress;
       }
 
-      const isProximitySearch = resolvedLat !== undefined && resolvedLng !== undefined;
+      const isProximitySearch =
+        resolvedLat !== undefined && resolvedLng !== undefined;
       const rows = this.shouldUseDirectDb()
         ? await this.readDbService.searchBuildings({
             keyword,
@@ -355,8 +382,16 @@ export class DormitoryTool {
             .map((building) => {
               const { lat, lng } = this.parseBuildingCoordinates(building);
               if (lat === undefined || lng === undefined) return null;
-              const distanceKm = this.haversineKm(resolvedLat!, resolvedLng!, lat, lng);
-              return { ...building, distance_km: Math.round(distanceKm * 100) / 100 };
+              const distanceKm = this.haversineKm(
+                resolvedLat!,
+                resolvedLng!,
+                lat,
+                lng,
+              );
+              return {
+                ...building,
+                distance_km: Math.round(distanceKm * 100) / 100,
+              };
             })
             .filter(
               (item): item is NonNullable<typeof item> =>
@@ -444,7 +479,10 @@ export class DormitoryTool {
     } catch (error: any) {
       const msg = this.extractErrorMessage(error);
       this.logger.error(`get_building_details failed: ${msg}`, error.stack);
-      return { success: false, error: `Không thể lấy thông tin tòa nhà: ${msg}` };
+      return {
+        success: false,
+        error: `Không thể lấy thông tin tòa nhà: ${msg}`,
+      };
     }
   }
 
@@ -470,7 +508,9 @@ export class DormitoryTool {
       const scopedRooms = building_id
         ? rooms.filter((r) => r?.buildingId === building_id)
         : rooms;
-      const prices = scopedRooms.map((r) => this.getRoomPrice(r)).filter((p) => p > 0);
+      const prices = scopedRooms
+        .map((r) => this.getRoomPrice(r))
+        .filter((p) => p > 0);
 
       const amenityCount: Record<string, number> = {};
       for (const room of scopedRooms) {
@@ -515,7 +555,9 @@ export class DormitoryTool {
               ? {
                   min: Math.min(...prices),
                   max: Math.max(...prices),
-                  avg: Math.round(prices.reduce((s, p) => s + p, 0) / prices.length),
+                  avg: Math.round(
+                    prices.reduce((s, p) => s + p, 0) / prices.length,
+                  ),
                   currency: 'VND',
                 }
               : null,
@@ -541,7 +583,12 @@ export class DormitoryTool {
     }),
   })
   async searchAffordableRoomsAlias(
-    args: { max_price: number; min_capacity?: number; building_id?: string; limit?: number },
+    args: {
+      max_price: number;
+      min_capacity?: number;
+      building_id?: string;
+      limit?: number;
+    },
     context: Context,
   ) {
     return this.searchRooms(
@@ -625,7 +672,12 @@ export class DormitoryTool {
     }),
   })
   async findNearbyDormitoryBuildingsAlias(
-    args: { latitude: number; longitude: number; radius_km?: number; limit?: number },
+    args: {
+      latitude: number;
+      longitude: number;
+      radius_km?: number;
+      limit?: number;
+    },
     context: Context,
   ) {
     return this.searchBuildings(
@@ -662,7 +714,10 @@ export class DormitoryTool {
   ) {
     const place = (args.place_query || args.place_name || '').trim();
     if (!place) {
-      return { success: false, error: 'Thiếu tham số địa điểm: place_query hoặc place_name.' };
+      return {
+        success: false,
+        error: 'Thiếu tham số địa điểm: place_query hoặc place_name.',
+      };
     }
 
     const result = await this.searchBuildings(

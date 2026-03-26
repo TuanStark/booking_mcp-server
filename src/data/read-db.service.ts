@@ -32,7 +32,9 @@ export class ReadDbService implements OnModuleDestroy {
 
   constructor(private readonly configService: ConfigService) {
     const roomDbUrl = this.configService.get<string>('ROOM_DATABASE_URL');
-    const buildingDbUrl = this.configService.get<string>('BUILDING_DATABASE_URL');
+    const buildingDbUrl = this.configService.get<string>(
+      'BUILDING_DATABASE_URL',
+    );
 
     if (!roomDbUrl || !buildingDbUrl) {
       this.logger.warn(
@@ -79,11 +81,18 @@ export class ReadDbService implements OnModuleDestroy {
       roomDb:
         roomResult.status === 'fulfilled'
           ? { ok: true }
-          : { ok: false, error: roomResult.reason?.message || 'room DB check failed' },
+          : {
+              ok: false,
+              error: roomResult.reason?.message || 'room DB check failed',
+            },
       buildingDb:
         buildingResult.status === 'fulfilled'
           ? { ok: true }
-          : { ok: false, error: buildingResult.reason?.message || 'building DB check failed' },
+          : {
+              ok: false,
+              error:
+                buildingResult.reason?.message || 'building DB check failed',
+            },
     };
   }
 
@@ -95,11 +104,15 @@ export class ReadDbService implements OnModuleDestroy {
 
     if (keyword) {
       values.push(`%${keyword}%`);
-      where.push(`("name" ILIKE $${values.length} OR "address" ILIKE $${values.length})`);
+      where.push(
+        `("name" ILIKE $${values.length} OR "address" ILIKE $${values.length})`,
+      );
     }
     if (city) {
       values.push(`%${city}%`);
-      where.push(`("city" ILIKE $${values.length} OR "address" ILIKE $${values.length})`);
+      where.push(
+        `("city" ILIKE $${values.length} OR "address" ILIKE $${values.length})`,
+      );
     }
     if (district) {
       values.push(`%${district}%`);
@@ -157,7 +170,9 @@ export class ReadDbService implements OnModuleDestroy {
     }
     if (roomType) {
       values.push(`%${roomType}%`);
-      where.push(`("name" ILIKE $${values.length} OR "description" ILIKE $${values.length})`);
+      where.push(
+        `("name" ILIKE $${values.length} OR "description" ILIKE $${values.length})`,
+      );
     }
     if (buildingId) {
       values.push(buildingId);
@@ -212,7 +227,9 @@ export class ReadDbService implements OnModuleDestroy {
     if (rooms.length === 0) return [];
 
     const roomIds = rooms.map((r) => r.id);
-    const buildingIds = Array.from(new Set(rooms.map((r) => r.buildingId).filter(Boolean)));
+    const buildingIds = Array.from(
+      new Set(rooms.map((r) => r.buildingId).filter(Boolean)),
+    );
 
     const [amenitiesResult, imagesResult, buildingsResult] = await Promise.all([
       this.roomPool.query(
@@ -243,13 +260,15 @@ export class ReadDbService implements OnModuleDestroy {
 
     const amenitiesByRoomId = new Map<string, any[]>();
     for (const amenity of amenitiesResult.rows) {
-      if (!amenitiesByRoomId.has(amenity.roomId)) amenitiesByRoomId.set(amenity.roomId, []);
+      if (!amenitiesByRoomId.has(amenity.roomId))
+        amenitiesByRoomId.set(amenity.roomId, []);
       amenitiesByRoomId.get(amenity.roomId)!.push(amenity);
     }
 
     const imagesByRoomId = new Map<string, any[]>();
     for (const image of imagesResult.rows) {
-      if (!imagesByRoomId.has(image.roomId)) imagesByRoomId.set(image.roomId, []);
+      if (!imagesByRoomId.has(image.roomId))
+        imagesByRoomId.set(image.roomId, []);
       imagesByRoomId.get(image.roomId)!.push(image);
     }
 
@@ -344,4 +363,3 @@ export class ReadDbService implements OnModuleDestroy {
     return result.rows[0] ?? null;
   }
 }
-

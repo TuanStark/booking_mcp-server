@@ -31,4 +31,4 @@ import { ReadDbService } from './data/read-db.service';
     DormitoryTool,
   ],
 })
-export class AppModule { }
+export class AppModule {}
