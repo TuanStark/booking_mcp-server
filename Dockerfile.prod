@@ -11,7 +11,7 @@
     ENV GATEWAY_URL=$GATEWAY_URL
         
     COPY package*.json ./
-    RUN npm ci --production=false
+    RUN npm ci --include=dev --legacy-peer-deps
     COPY . .
     RUN npm run build
 
@@ -29,6 +29,6 @@
 
     COPY --from=builder /app/dist ./dist
     COPY --from=builder /app/package*.json ./
-    RUN npm ci --only=production
+    RUN npm ci --omit=dev --legacy-peer-deps
     EXPOSE 3000
     CMD ["node", "dist/main"]
