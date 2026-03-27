@@ -7,9 +7,10 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - PORT=3000
     restart: always
     ports:
-      - "${PORT}:3000"
+      - "${MCP_HOST_PORT:-3011}:3000"
     networks:
       my_custom_network:
         ipv4_address: ${APP_IP}
