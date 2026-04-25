@@ -29,14 +29,16 @@ export class ReadDbService implements OnModuleDestroy {
   private readonly logger = new Logger(ReadDbService.name);
   private readonly roomPool: Pool;
   private readonly buildingPool: Pool;
+  private readonly bookingPool: Pool;
 
   constructor(private readonly configService: ConfigService) {
     const roomDbUrl = this.configService.get<string>('ROOM_DATABASE_URL');
     const buildingDbUrl = this.configService.get<string>('BUILDING_DATABASE_URL');
+    const bookingDbUrl = this.configService.get<string>('BOOKING_DATABASE_URL');
 
-    if (!roomDbUrl || !buildingDbUrl) {
+    if (!roomDbUrl || !buildingDbUrl || !bookingDbUrl) {
       this.logger.warn(
-        'ROOM_DATABASE_URL or BUILDING_DATABASE_URL is not configured. MCP will fallback to gateway path.',
+        'Database URLs are not fully configured. MCP will fallback to gateway path where possible.',
       );
     }
 
@@ -53,26 +55,36 @@ export class ReadDbService implements OnModuleDestroy {
       idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 3000,
     });
+
+    this.bookingPool = new Pool({
+      connectionString: bookingDbUrl,
+      max: 10,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 3000,
+    });
   }
 
   isReady(): boolean {
     return !!(
       this.configService.get<string>('ROOM_DATABASE_URL') &&
-      this.configService.get<string>('BUILDING_DATABASE_URL')
+      this.configService.get<string>('BUILDING_DATABASE_URL') &&
+      this.configService.get<string>('BOOKING_DATABASE_URL')
     );
   }
 
   async onModuleDestroy(): Promise<void> {
-    await Promise.allSettled([this.roomPool.end(), this.buildingPool.end()]);
+    await Promise.allSettled([this.roomPool.end(), this.buildingPool.end(), this.bookingPool.end()]);
   }
 
   async checkConnections(): Promise<{
     roomDb: { ok: boolean; error?: string };
     buildingDb: { ok: boolean; error?: string };
+    bookingDb: { ok: boolean; error?: string };
   }> {
-    const [roomResult, buildingResult] = await Promise.allSettled([
+    const [roomResult, buildingResult, bookingResult] = await Promise.allSettled([
       this.roomPool.query('SELECT 1'),
       this.buildingPool.query('SELECT 1'),
+      this.bookingPool.query('SELECT 1'),
     ]);
 
     return {
@@ -84,6 +96,10 @@ export class ReadDbService implements OnModuleDestroy {
         buildingResult.status === 'fulfilled'
           ? { ok: true }
           : { ok: false, error: buildingResult.reason?.message || 'building DB check failed' },
+      bookingDb:
+        bookingResult.status === 'fulfilled'
+          ? { ok: true }
+          : { ok: false, error: bookingResult.reason?.message || 'booking DB check failed' },
     };
   }
 
@@ -342,6 +358,37 @@ export class ReadDbService implements OnModuleDestroy {
       [buildingId],
     );
     return result.rows[0] ?? null;
+  }
+
+  async getRoomBookings(roomId: string, fromDate?: string | Date, toDate?: string | Date): Promise<any[]> {
+    const values: any[] = [roomId];
+    const where: string[] = [`bd."roomId" = $1`];
+    where.push(`b."status" IN ('PENDING', 'CONFIRMED', 'ACTIVE')`); 
+    
+    if (fromDate) {
+       values.push(new Date(fromDate));
+       where.push(`b."endDate" >= $${values.length}`);
+    }
+    
+    if (toDate) {
+       values.push(new Date(toDate));
+       where.push(`b."startDate" <= $${values.length}`);
+    }
+
+    const result = await this.bookingPool.query(
+      `
+      SELECT 
+        b.id, b."userId", b.status, b."startDate", b."endDate", b."durationMonths", 
+        b."isRelisted", b."renewalDeadline", b."paymentStatus", bd.price
+      FROM "bookings" b
+      JOIN "booking_details" bd ON b.id = bd."bookingId"
+      WHERE ${where.join(' AND ')}
+      ORDER BY b."startDate" ASC
+      `
+      , values
+    );
+    
+    return result.rows;
   }
 }
 

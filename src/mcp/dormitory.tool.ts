@@ -487,6 +487,35 @@ export class DormitoryTool {
   }
 
   @Tool({
+    name: 'check_room_bookings',
+    description: 'Kiểm tra lịch đặt phòng của một phòng KTX để biết phòng đã được đặt vào những khoảng thời gian nào. Hữu ích để tư vấn ngày giờ đặt phòng trống hợp lí.',
+    parameters: z.object({
+      room_id: z.string().describe('ID của phòng cần kiểm tra'),
+      from_date: z.string().optional().describe('Ngày bắt đầu kiểm tra (YYYY-MM-DD)'),
+      to_date: z.string().optional().describe('Ngày kết thúc kiểm tra (YYYY-MM-DD)'),
+    }),
+  })
+  async checkRoomBookings(
+    { room_id, from_date, to_date }: { room_id: string; from_date?: string; to_date?: string },
+    context: Context,
+  ) {
+    try {
+      this.safeReportProgress(context, 20);
+      if (this.shouldUseDirectDb()) {
+        const bookings = await this.readDbService.getRoomBookings(room_id, from_date, to_date);
+        this.safeReportProgress(context, 100);
+        return { success: true, data: bookings, meta: { room_id, from_date, to_date, total_bookings: bookings.length } };
+      }
+      
+      return { success: false, error: 'Database connection for bookings is not available. Please try again later.' };
+    } catch (error: any) {
+      const msg = this.extractErrorMessage(error);
+      this.logger.error(`check_room_bookings failed: ${msg}`, error.stack);
+      return { success: false, error: `Không thể lấy dữ liệu lịch đặt phòng: ${msg}` };
+    }
+  }
+
+  @Tool({
     name: 'get_dormitory_overview',
     description:
       'Lấy thống kê tổng quan KTX: tổng tòa, tổng phòng, tỷ lệ lấp đầy, dải giá và tiện nghi phổ biến.',
